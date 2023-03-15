@@ -35,7 +35,7 @@ func (s *service) MultiMemberGroupCreate(ctx context.Context, req *protocoltypes
 		return nil, errcode.ErrInternal.Wrap(err)
 	}
 
-	err = s.activateGroup(ctx, sk.GetPublic(), false)
+	err = s.activateGroup(ctx, sk.GetPublic(), false, 0)
 	if err != nil {
 		return nil, errcode.ErrInternal.Wrap(fmt.Errorf("unable to activate group: %w", err))
 	}

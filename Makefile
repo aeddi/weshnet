@@ -135,7 +135,7 @@ validate-go-version:
 ##
 
 
-protos_src := $(wildcard ../api/*.proto) $(wildcard ../api/go-internal/*.proto)
+protos_src := $(wildcard ../api/*.proto) $(wildcard ../api/*/*.proto) $(wildcard ../api/go-internal/*/.proto)
 gen_src := $(protos_src) Makefile
 gen_sum := gen.sum
 protoc_opts := -I ../api:`go list -m -mod=mod -f {{.Dir}} github.com/grpc-ecosystem/grpc-gateway`/third_party/googleapis:`go list -m -mod=mod -f {{.Dir}} github.com/gogo/protobuf`:/protobuf

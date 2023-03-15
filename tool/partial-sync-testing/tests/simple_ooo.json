@@ -1,0 +1,31 @@
+{
+  "PeersAmount": 4,
+  "Steps": [
+    {
+      "MsgAmount": 3,
+      "OutOfOrder": true,
+      "Peers": [
+        0,
+        1
+      ]
+    },
+    {
+      "MsgAmount": 3,
+      "OutOfOrder": true,
+      "Peers": [
+        2,
+        3
+      ]
+    },
+    {
+      "MsgAmount": 0,
+      "TimeoutMS": 5000,
+      "Peers": [
+        0,
+        1,
+        2,
+        3
+      ]
+    }
+  ]
+}

@@ -75,7 +75,8 @@ func (s *service) ActivateGroup(ctx context.Context, req *protocoltypes.Activate
 		return nil, errcode.ErrInvalidInput.Wrap(err)
 	}
 
-	err = s.activateGroup(ctx, pk, req.LocalOnly)
+	// TODO: Check this int vs int64 stuff
+	err = s.activateGroup(ctx, pk, req.LocalOnly, int(req.MsgPartialSync))
 	if err != nil {
 		return nil, errcode.ErrInternal.Wrap(err)
 	}

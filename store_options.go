@@ -31,6 +31,7 @@ func DefaultOrbitDBOptions(g *protocoltypes.Group, options *orbitdb.CreateDBOpti
 		Cache:                   options.Cache,
 		EventBus:                options.EventBus,
 		Logger:                  options.Logger,
+		PartialSync:             options.PartialSync,
 	}
 
 	t := true

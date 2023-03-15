@@ -83,7 +83,7 @@ func (s *service) deactivateGroup(pk crypto.PubKey) error {
 	return nil
 }
 
-func (s *service) activateGroup(ctx context.Context, pk crypto.PubKey, localOnly bool) error {
+func (s *service) activateGroup(ctx context.Context, pk crypto.PubKey, localOnly bool, msgPartialSync int) error {
 	id, err := pk.Raw()
 	if err != nil {
 		return errcode.ErrSerialization.Wrap(err)
@@ -121,7 +121,18 @@ func (s *service) activateGroup(ctx context.Context, pk crypto.PubKey, localOnly
 		}
 	case protocoltypes.GroupTypeAccount:
 		localOnly = true
-		if s.accountGroup, err = s.odb.openAccountGroup(ctx, &iface.CreateDBOptions{EventBus: s.accountEventBus, LocalOnly: &localOnly}, s.ipfsCoreAPI); err != nil {
+		if s.accountGroup, err = s.odb.openAccountGroup(
+			ctx,
+			&iface.CreateDBOptions{
+				EventBus:  s.accountEventBus,
+				LocalOnly: &localOnly,
+			},
+			&iface.CreateDBOptions{
+				EventBus:    s.accountEventBus,
+				LocalOnly:   &localOnly,
+				PartialSync: 0, // Get all messages for account group
+			},
+			s.ipfsCoreAPI); err != nil {
 			return err
 		}
 		s.openedGroups[string(id)] = s.accountGroup
@@ -139,8 +150,14 @@ func (s *service) activateGroup(ctx context.Context, pk crypto.PubKey, localOnly
 		return errcode.ErrInternal.Wrap(fmt.Errorf("unknown group type"))
 	}
 
-	dbOpts := &iface.CreateDBOptions{LocalOnly: &localOnly}
-	gc, err := s.odb.OpenGroup(ctx, g, dbOpts)
+	metaOpts := &iface.CreateDBOptions{
+		LocalOnly: &localOnly,
+	}
+	msgOpts := &iface.CreateDBOptions{
+		LocalOnly:   &localOnly,
+		PartialSync: msgPartialSync,
+	}
+	gc, err := s.odb.OpenGroup(ctx, g, metaOpts, msgOpts)
 	if err != nil {
 		return errcode.ErrGroupOpen.Wrap(err)
 	}

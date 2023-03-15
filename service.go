@@ -253,12 +253,19 @@ func NewService(opts Opts) (_ Service, err error) {
 	defer func() { endSection(err, "") }()
 
 	accountEventBus := eventbus.NewBus()
-	dbOpts := &iface.CreateDBOptions{
-		EventBus:  accountEventBus,
-		LocalOnly: &opts.LocalOnly,
-	}
 
-	acc, err := opts.OrbitDB.openAccountGroup(ctx, dbOpts, opts.IpfsCoreAPI)
+	acc, err := opts.OrbitDB.openAccountGroup(
+		ctx,
+		&iface.CreateDBOptions{
+			EventBus:  accountEventBus,
+			LocalOnly: &opts.LocalOnly,
+		},
+		&iface.CreateDBOptions{
+			EventBus:    accountEventBus,
+			LocalOnly:   &opts.LocalOnly,
+			PartialSync: 0, // Get all messages for account group
+		},
+		opts.IpfsCoreAPI)
 	if err != nil {
 		cancel()
 		return nil, errcode.TODO.Wrap(err)

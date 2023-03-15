@@ -188,7 +188,7 @@ func TestMetadataRendezvousPointLifecycle(t *testing.T) {
 
 	api := ipfsAPIUsingMockNet(ctx, t)
 
-	ownCG, err := peers[0].DB.openAccountGroup(ctx, nil, api)
+	ownCG, err := peers[0].DB.openAccountGroup(ctx, nil, nil, api)
 	assert.NoError(t, err)
 
 	meta := ownCG.MetadataStore()
@@ -261,7 +261,7 @@ func TestMetadataContactLifecycle(t *testing.T) {
 	api := ipfsAPIUsingMockNet(ctx, t)
 
 	for i, p := range peers {
-		ownCG[i], err = p.DB.openAccountGroup(ctx, nil, api)
+		ownCG[i], err = p.DB.openAccountGroup(ctx, nil, nil, api)
 		require.NoError(t, err)
 
 		meta[i] = ownCG[i].MetadataStore()
@@ -527,7 +527,7 @@ func TestMetadataAliasLifecycle(t *testing.T) {
 	g, err := cryptoutil.GetGroupForContact(sk)
 	require.NoError(t, err)
 
-	cg0, err := peers[0].DB.OpenGroup(ctx, g, nil)
+	cg0, err := peers[0].DB.OpenGroup(ctx, g, nil, nil)
 	require.NoError(t, err)
 	defer cg0.Close()
 
@@ -548,7 +548,7 @@ func TestMetadataAliasLifecycle(t *testing.T) {
 	g, err = cryptoutil.GetGroupForContact(sk)
 	require.NoError(t, err)
 
-	cg1, err := peers[1].DB.OpenGroup(ctx, g, nil)
+	cg1, err := peers[1].DB.OpenGroup(ctx, g, nil, nil)
 	require.NoError(t, err)
 	defer cg1.Close()
 
@@ -569,7 +569,7 @@ func TestMetadataGroupsLifecycle(t *testing.T) {
 
 	api := ipfsAPIUsingMockNet(ctx, t)
 
-	ownCG, err := peers[0].DB.openAccountGroup(ctx, nil, api)
+	ownCG, err := peers[0].DB.openAccountGroup(ctx, nil, nil, api)
 	assert.NoError(t, err)
 
 	g1, _, err := NewGroupMultiMember()
@@ -716,7 +716,7 @@ func TestFlappyMultiDevices_Basic(t *testing.T) {
 		if (i % deviceCount) == (deviceCount - 1) {
 			continue
 		}
-		ownCG[i], err = p.DB.openAccountGroup(ctx, nil, api)
+		ownCG[i], err = p.DB.openAccountGroup(ctx, nil, nil, api)
 		require.NoError(t, err)
 
 		meta[i] = ownCG[i].MetadataStore()
@@ -802,7 +802,7 @@ func TestFlappyMultiDevices_Basic(t *testing.T) {
 
 	// Check if a account group activate after the contact request is synchronized
 	// Activate the 2nd peer's latest device account group
-	ownCG[pi[1][2]], err = peers[pi[1][2]].DB.openAccountGroup(ctx, nil, api)
+	ownCG[pi[1][2]], err = peers[pi[1][2]].DB.openAccountGroup(ctx, nil, nil, api)
 	require.NoError(t, err)
 	meta[pi[1][2]] = ownCG[pi[1][2]].MetadataStore()
 

@@ -402,7 +402,7 @@ func CreatePeersWithGroupTest(ctx context.Context, t testing.TB, pathBase string
 				t.Fatal(err)
 			}
 
-			gc, err := db.OpenGroup(ctx, g, nil)
+			gc, err := db.OpenGroup(ctx, g, nil, nil)
 			if err != nil {
 				t.Fatalf("err: creating new group context, %v", err)
 			}

@@ -1,0 +1,12 @@
+{
+  "PeersAmount": 2,
+  "Steps": [
+    {
+      "MsgAmount": 3,
+      "Peers": [
+        0,
+        1
+      ]
+    }
+  ]
+}

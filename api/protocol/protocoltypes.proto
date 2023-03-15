@@ -983,6 +983,10 @@ message ActivateGroup {
     // local_only will open the group without enabling network interactions
     // with other members
     bool local_only = 2;
+    
+    // msg_partial_sync will only fetch and replicate the N last messages
+    // TODO : Add more doc
+    int64 msg_partial_sync = 3;
   }
 
   message Reply {

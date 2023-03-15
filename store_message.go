@@ -323,10 +323,6 @@ func (m *MessageStore) AddMessage(ctx context.Context, payload []byte) (operatio
 		return nil, errcode.ErrInternal.Wrap(err)
 	}
 
-	return messageStoreAddMessage(ctx, m.g, md, m, payload)
-}
-
-func messageStoreAddMessage(ctx context.Context, g *protocoltypes.Group, md *cryptoutil.OwnMemberDevice, m *MessageStore, payload []byte) (operation.Operation, error) {
 	msg, err := (&protocoltypes.EncryptedMessage{
 		Plaintext:        payload,
 		ProtocolMetadata: &protocoltypes.ProtocolMetadata{},
@@ -335,7 +331,7 @@ func messageStoreAddMessage(ctx context.Context, g *protocoltypes.Group, md *cry
 		return nil, errcode.ErrInternal.Wrap(err)
 	}
 
-	env, err := m.mks.SealEnvelope(ctx, g, md.PrivateDevice(), msg)
+	env, err := m.mks.SealEnvelope(ctx, m.g, md.PrivateDevice(), msg)
 	if err != nil {
 		return nil, errcode.ErrCryptoEncrypt.Wrap(err)
 	}

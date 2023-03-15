@@ -223,15 +223,21 @@ func NewWeshOrbitDB(ctx context.Context, ipfs coreapi.CoreAPI, options *NewOrbit
 	return bertyDB, nil
 }
 
-func (s *WeshOrbitDB) openAccountGroup(ctx context.Context, options *orbitdb.CreateDBOptions, ipfsCoreAPI ipfsutil.ExtendedCoreAPI) (*GroupContext, error) {
+func (s *WeshOrbitDB) openAccountGroup(ctx context.Context, metaOptions, msgOptions *orbitdb.CreateDBOptions, ipfsCoreAPI ipfsutil.ExtendedCoreAPI) (*GroupContext, error) {
 	l := s.Logger()
 
-	if options == nil {
-		options = &orbitdb.CreateDBOptions{}
+	if metaOptions == nil {
+		metaOptions = &orbitdb.CreateDBOptions{}
+	}
+	if metaOptions.EventBus == nil {
+		metaOptions.EventBus = s.EventBus()
 	}
 
-	if options.EventBus == nil {
-		options.EventBus = s.EventBus()
+	if msgOptions == nil {
+		msgOptions = &orbitdb.CreateDBOptions{}
+	}
+	if msgOptions.EventBus == nil {
+		msgOptions.EventBus = s.EventBus()
 	}
 
 	sk, err := s.deviceKeystore.AccountPrivKey()
@@ -254,7 +260,7 @@ func (s *WeshOrbitDB) openAccountGroup(ctx context.Context, options *orbitdb.Cre
 
 	l.Debug("Got account group", tyber.FormatStepLogFields(ctx, []tyber.Detail{{Name: "Group", Description: g.String()}})...)
 
-	gc, err := s.OpenGroup(ctx, g, options)
+	gc, err := s.OpenGroup(ctx, g, metaOptions, msgOptions)
 	if err != nil {
 		return nil, errcode.ErrGroupOpen.Wrap(err)
 	}
@@ -300,7 +306,7 @@ func (s *WeshOrbitDB) setHeadsForGroup(ctx context.Context, g *protocoltypes.Gro
 		s.Logger().Debug("OpenGroup", zap.Any("public key", g.PublicKey), zap.Any("secret", g.Secret), zap.Stringer("type", g.GroupType))
 
 		if metaImpl == nil {
-			metaImpl, err = s.storeForGroup(ctx, s, g, nil, s.groupMetadataStoreType, GroupOpenModeReplicate)
+			metaImpl, err = s.storeForGroup(ctx, g, nil, s.groupMetadataStoreType, GroupOpenModeReplicate)
 			if err != nil {
 				return errcode.ErrOrbitDBOpen.Wrap(err)
 			}
@@ -309,7 +315,7 @@ func (s *WeshOrbitDB) setHeadsForGroup(ctx context.Context, g *protocoltypes.Gro
 		}
 
 		if messagesImpl == nil {
-			messagesImpl, err = s.storeForGroup(ctx, s, g, nil, s.groupMessageStoreType, GroupOpenModeReplicate)
+			messagesImpl, err = s.storeForGroup(ctx, g, nil, s.groupMessageStoreType, GroupOpenModeReplicate)
 			if err != nil {
 				return errcode.ErrOrbitDBOpen.Wrap(err)
 			}
@@ -373,7 +379,7 @@ func (s *WeshOrbitDB) loadHeads(ctx context.Context, store iface.Store, heads []
 		return nil
 	}
 
-	store.Replicator().Load(ctx, headsEntries)
+	store.Replicator().Load(ctx, -1, headsEntries)
 
 	for found := 0; found < len(heads); {
 		// wait for load to finish
@@ -399,7 +405,7 @@ func (s *WeshOrbitDB) loadHeads(ctx context.Context, store iface.Store, heads []
 	return nil
 }
 
-func (s *WeshOrbitDB) OpenGroup(ctx context.Context, g *protocoltypes.Group, options *orbitdb.CreateDBOptions) (*GroupContext, error) {
+func (s *WeshOrbitDB) OpenGroup(ctx context.Context, g *protocoltypes.Group, metaOptions, msgOptions *orbitdb.CreateDBOptions) (*GroupContext, error) {
 	if s.deviceKeystore == nil || s.messageKeystore == nil {
 		return nil, errcode.ErrInvalidInput.Wrap(fmt.Errorf("db open in naive mode"))
 	}
@@ -441,7 +447,7 @@ func (s *WeshOrbitDB) OpenGroup(ctx context.Context, g *protocoltypes.Group, opt
 
 	s.Logger().Debug("Got device secret", tyber.FormatStepLogFields(s.ctx, []tyber.Detail{})...)
 
-	metaImpl, err := s.groupMetadataStore(ctx, g, options)
+	metaImpl, err := s.groupMetadataStore(ctx, g, metaOptions)
 	if err != nil {
 		return nil, errcode.ErrOrbitDBOpen.Wrap(err)
 	}
@@ -451,11 +457,11 @@ func (s *WeshOrbitDB) OpenGroup(ctx context.Context, g *protocoltypes.Group, opt
 
 	// force to unshare the same EventBus between groupMetadataStore and groupMessageStore
 	// to avoid having a bunch of events which are not for the correct group
-	if options != nil && options.EventBus != nil {
-		options.EventBus = eventbus.NewBus()
+	if msgOptions != nil && msgOptions.EventBus != nil {
+		msgOptions.EventBus = eventbus.NewBus()
 	}
 
-	messagesImpl, err := s.groupMessageStore(ctx, g, options)
+	messagesImpl, err := s.groupMessageStore(ctx, g, msgOptions)
 	if err != nil {
 		metaImpl.Close()
 		return nil, errcode.ErrOrbitDBOpen.Wrap(err)
@@ -496,13 +502,13 @@ func (s *WeshOrbitDB) OpenGroupReplication(ctx context.Context, g *protocoltypes
 		return nil, nil, err
 	}
 
-	metadataStore, err := s.storeForGroup(ctx, s, g, options, s.groupMetadataStoreType, GroupOpenModeReplicate)
+	metadataStore, err := s.storeForGroup(ctx, g, options, s.groupMetadataStoreType, GroupOpenModeReplicate)
 	if err != nil {
 		_ = metadataStore.Close()
 		return nil, nil, errors.Wrap(err, "unable to open database")
 	}
 
-	messageStore, err := s.storeForGroup(ctx, s, g, options, s.groupMessageStoreType, GroupOpenModeReplicate)
+	messageStore, err := s.storeForGroup(ctx, g, options, s.groupMessageStoreType, GroupOpenModeReplicate)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "unable to open database")
 	}
@@ -542,7 +548,7 @@ func (s *WeshOrbitDB) SetGroupSigPubKey(groupID string, pubKey crypto.PubKey) er
 	return nil
 }
 
-func (s *WeshOrbitDB) storeForGroup(ctx context.Context, o iface.BaseOrbitDB, g *protocoltypes.Group, options *orbitdb.CreateDBOptions, storeType string, groupOpenMode GroupOpenMode) (iface.Store, error) {
+func (s *WeshOrbitDB) storeForGroup(ctx context.Context, g *protocoltypes.Group, options *orbitdb.CreateDBOptions, storeType string, groupOpenMode GroupOpenMode) (iface.Store, error) {
 	l := s.Logger()
 
 	options, err := DefaultOrbitDBOptions(g, options, s.keyStore, storeType, groupOpenMode)
@@ -555,7 +561,7 @@ func (s *WeshOrbitDB) storeForGroup(ctx context.Context, o iface.BaseOrbitDB, g 
 	options.StoreType = &storeType
 	name := fmt.Sprintf("%s_%s", g.GroupIDAsString(), storeType)
 
-	addr, err := o.DetermineAddress(ctx, name, storeType, &orbitdb.DetermineAddressOptions{AccessController: options.AccessController})
+	addr, err := s.DetermineAddress(ctx, name, storeType, &orbitdb.DetermineAddressOptions{AccessController: options.AccessController})
 	if err != nil {
 		return nil, err
 	}
@@ -583,7 +589,7 @@ func (s *WeshOrbitDB) storeForGroup(ctx context.Context, o iface.BaseOrbitDB, g 
 		s.rotationInterval.RegisterRotation(time.Now(), addr.String(), key)
 	}
 
-	store, err := o.Open(ctx, name, options)
+	store, err := s.Open(ctx, name, options)
 	if err != nil {
 		return nil, errcode.ErrOrbitDBOpen.Wrap(err)
 	}
@@ -607,7 +613,7 @@ func (s *WeshOrbitDB) groupMetadataStore(ctx context.Context, g *protocoltypes.G
 
 	l.Debug("Opening group metadata store", tyber.FormatStepLogFields(ctx, []tyber.Detail{{Name: "Group", Description: g.String()}, {Name: "Options", Description: fmt.Sprint(options)}}, tyber.Status(tyber.Running))...)
 
-	store, err := s.storeForGroup(ctx, s, g, options, s.groupMetadataStoreType, GroupOpenModeWrite)
+	store, err := s.storeForGroup(ctx, g, options, s.groupMetadataStoreType, GroupOpenModeWrite)
 	if err != nil {
 		return nil, tyber.LogFatalError(ctx, l, "Failed to get group store", errors.Wrap(err, "unable to open database"))
 	}
@@ -634,7 +640,7 @@ func (s *WeshOrbitDB) groupMessageStore(ctx context.Context, g *protocoltypes.Gr
 
 	l.Debug("Opening group message store", tyber.FormatStepLogFields(ctx, []tyber.Detail{{Name: "Group", Description: g.String()}, {Name: "Options", Description: fmt.Sprint(options)}}, tyber.Status(tyber.Running))...)
 
-	store, err := s.storeForGroup(ctx, s, g, options, s.groupMessageStoreType, GroupOpenModeWrite)
+	store, err := s.storeForGroup(ctx, g, options, s.groupMessageStoreType, GroupOpenModeWrite)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to open database")
 	}

@@ -77,7 +77,7 @@ func (m *MetadataStore) setLogger(l *zap.Logger) {
 	}
 
 	// m.logger = l.Named("store").With(logutil.PrivateString("group-id", fmt.Sprintf("%.6s", base64.StdEncoding.EncodeToString(m.g.PublicKey))))
-	m.logger = l.Named("metastore")
+	m.logger = l.Named("metadatastore")
 
 	if index, ok := m.Index().(loggable); ok {
 		index.setLogger(m.logger)
@@ -102,11 +102,6 @@ func openMetadataEntry(log ipfslog.Log, e ipfslog.Entry, g *protocoltypes.Group)
 
 	return metaEvent, event, err
 }
-
-// not used
-// func (m *MetadataStore) openMetadataEntry(e ipfslog.Entry) (*protocoltypes.GroupMetadataEvent, proto.Message, error) {
-// 	return openMetadataEntry(m.OpLog(), e, m.g, m.devKS)
-// }
 
 // FIXME: use iterator instead to reduce resource usage (require go-ipfs-log improvements)
 func (m *MetadataStore) ListEvents(ctx context.Context, since, until []byte, reverse bool) (<-chan *protocoltypes.GroupMetadataEvent, error) {
@@ -1026,7 +1021,10 @@ func constructorFactoryGroupMetadata(s *WeshOrbitDB, logger *zap.Logger) iface.S
 			logger:   logger,
 		}
 
-		if err := store.initEmitter(); err != nil {
+		if store.emitters.metadataReceived, err = store.eventBus.Emitter(new(EventMetadataReceived)); err != nil {
+			return nil, fmt.Errorf("unable to init emitters: %w", err)
+		}
+		if store.emitters.groupMetadata, err = store.eventBus.Emitter(new(protocoltypes.GroupMetadataEvent)); err != nil {
 			return nil, fmt.Errorf("unable to init emitters: %w", err)
 		}
 
@@ -1210,18 +1208,6 @@ func (m *MetadataStore) DevicePK() (crypto.PubKey, error) {
 
 func (m *MetadataStore) Group() *protocoltypes.Group {
 	return m.g.Copy()
-}
-
-func (m *MetadataStore) initEmitter() (err error) {
-	if m.emitters.metadataReceived, err = m.eventBus.Emitter(new(EventMetadataReceived)); err != nil {
-		return
-	}
-
-	if m.emitters.groupMetadata, err = m.eventBus.Emitter(new(protocoltypes.GroupMetadataEvent)); err != nil {
-		return
-	}
-
-	return
 }
 
 func genNewSeed() (seed []byte, err error) {
